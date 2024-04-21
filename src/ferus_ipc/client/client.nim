@@ -130,7 +130,8 @@ proc connect*(client: var IPCClient): string {.inline.} =
           )
       else:
         # we must quietly die otherwise writing to stdout will trigger seccomp!
-        quit(1)
+        if num > 1000:
+          quit(1)
 
       inner(client, num + 1)
 
