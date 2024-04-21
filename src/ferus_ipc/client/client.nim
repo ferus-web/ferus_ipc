@@ -1,5 +1,8 @@
-import std/[os, logging, net, options, sugar, times], jsony
+import std/[os, net, options, sugar, times], jsony
 import ../shared
+
+when not defined(ferusInJail):
+  import std/logging
 
 when defined(unix):
   from std/posix import getuid
@@ -10,6 +13,7 @@ type
   IPCClient* = object
     socket*: Socket
     path*: string
+    connected: bool = false
 
     process: Option[FerusProcess]
 
@@ -23,107 +27,11 @@ proc send*[T](client: var IPCClient, data: T) {.inline.} =
 
   client.socket.send(serialized)
 
-proc receive*(client: var IPCClient): string {.inline.} =
-  var buff: string
-  
-  while true:
-    # debug "recv: blocking for 1 byte; current buffer is " & buff
-    let c = client.socket.recv(1)
-
-    if c == "":
-      break
-
-    case c[0]
-    of ' ', '\0', char(10):
-      break
-    else:
-      discard
-
-    buff &= c
-
-  buff
-
-proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline.} =
-  let data = client.receive()
-
-  try:
-    data
-      .fromJson(struct)
-      .some()
-  except JsonError as exc:
-    warn "receive(" & $struct & ") failed: " & exc.msg
-    warn "buffer: " & data
-    
-    none T
-
-proc handshake*(client: var IPCClient) =
-  info "IPC client performing handshake."
-  client.send(
-    HandshakePacket(
-      process: &client.process
-    )
-  )
-  let resPacket = &client.receive(HandshakeResultPacket)
-
-  if resPacket.accepted:
-    client.onConnect()
-  else:
-    client.onError(resPacket.reason)
-
-proc connect*(client: var IPCClient): string {.inline.} =
-  proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
-    let path = "/var" / "run" / "user" / $getuid() / "ferus-ipc-master-" & $num & ".sock"
-
-    try:
-      client.socket.connectUnix(path)
-      client.path = path
-
-      path
-    except OSError as exc:
-      warn "Unable to connect to path: " & path
-      if num > 1000:
-        raise newException(
-          InitializationFailed,
-          "Could not find Ferus' master IPC server after 1000 " &
-          "tries. Are you sure that a ferus_ipc instance is running?"
-        )
-
-      inner(client, num + 1)
-
-  inner(client)
-
-proc identifyAs*(client: var IPCClient, process: FerusProcess) {.inline, raises: [AlreadyRegisteredIdentity].} =
-  if *client.process:
-    raise newException(
-      AlreadyRegisteredIdentity,
-      "Already registered as another process. You cannot call `identifyAs` twice!"
-    )
-
-  client.process = some(process)
-
 proc info*(client: var IPCClient, message: string) {.inline.} =
   client.send(
     FerusLogPacket(
       level: 0'u8,
       message: message
-    )
-  )
-
-proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
-  if not *client.process:
-    raise newException(
-      ValueError,
-      "No process was registered before calling `setState()`. Run `identifyAs()` and provide a process first!"
-    )
-
-  var process = &client.process
-  process.state = state
-
-  client.process = some(process)
-
-  client.send(
-    ChangeStatePacket(
-      state: state
     )
   )
 
@@ -148,6 +56,114 @@ proc debug*(client: var IPCClient, message: string) {.inline.} =
     FerusLogPacket(
       level: 3'u8,
       message: message
+    )
+  )
+
+proc receive*(client: var IPCClient): string {.inline.} =
+  var buff: string
+  
+  while true:
+    let c = client.socket.recv(1)
+
+    if c == "":
+      break
+
+    case c[0]
+    of ' ', '\0', char(10):
+      break
+    else:
+      discard
+
+    buff &= c
+
+  buff
+
+proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline.} =
+  let data = client.receive()
+
+  try:
+    data
+      .fromJson(struct)
+      .some()
+  except JsonError as exc:
+    if client.connected:
+      client.warn "receive(" & $struct & ") failed: " & exc.msg
+      client.warn "buffer: " & data
+    else:
+      when not defined(ferusInJail):
+        client.warn "receive(" & $struct & ") failed: " & exc.msg
+        client.warn "buffer: " & data
+    
+    none T
+
+proc handshake*(client: var IPCClient) =
+  when not defined(ferusInJail):
+    info "IPC client performing handshake."
+  client.send(
+    HandshakePacket(
+      process: &client.process
+    )
+  )
+  let resPacket = &client.receive(HandshakeResultPacket)
+
+  if resPacket.accepted:
+    client.onConnect()
+  else:
+    client.onError(resPacket.reason)
+
+proc connect*(client: var IPCClient): string {.inline.} =
+  proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
+    let path = "/var" / "run" / "user" / $getuid() / "ferus-ipc-master-" & $num & ".sock"
+
+    try:
+      client.socket.connectUnix(path)
+      client.path = path
+
+      path
+    except OSError:
+      when not defined(ferusInJail):
+        if num > 1000:
+          raise newException(
+            InitializationFailed,
+            "Could not find Ferus' master IPC server after 1000 " &
+            "tries. Are you sure that a ferus_ipc instance is running?"
+          )
+      else:
+        # we must quietly die otherwise writing to stdout will trigger seccomp!
+        quit(1)
+
+      inner(client, num + 1)
+
+  inner(client)
+
+proc identifyAs*(client: var IPCClient, process: FerusProcess) {.inline, raises: [AlreadyRegisteredIdentity].} =
+  if *client.process:
+    when not defined(ferusInJail):
+      raise newException(
+        AlreadyRegisteredIdentity,
+        "Already registered as another process. You cannot call `identifyAs` twice!"
+      )
+    else:
+      quit(1)
+
+  client.process = some(process)
+
+proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
+  if not *client.process:
+    when not defined(ferusInJail):
+      raise newException(
+        ValueError,
+        "No process was registered before calling `setState()`. Run `identifyAs()` and provide a process first!"
+      )
+
+  var process = &client.process
+  process.state = state
+
+  client.process = some(process)
+
+  client.send(
+    ChangeStatePacket(
+      state: state
     )
   )
 
