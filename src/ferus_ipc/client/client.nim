@@ -5,12 +5,13 @@ when defined(unix):
   from std/posix import getuid
 
 type
+  AlreadyRegisteredIdentity* = object of CatchableError
   InitializationFailed* = object of Defect
   IPCClient* = object
     socket*: Socket
     path*: string
 
-    process*: FerusProcess
+    process: Option[FerusProcess]
 
     onConnect*: proc()
     onError*: proc(error: FailedHandshakeReason)
@@ -18,7 +19,7 @@ type
 proc send*[T](client: var IPCClient, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
 
-  debug "Sending: " & serialized
+  # debug "Sending: " & serialized
 
   client.socket.send(serialized)
 
@@ -26,7 +27,7 @@ proc receive*(client: var IPCClient): string {.inline.} =
   var buff: string
   
   while true:
-    debug "recv: blocking for 1 byte; current buffer is " & buff
+    # debug "recv: blocking for 1 byte; current buffer is " & buff
     let c = client.socket.recv(1)
 
     if c == "":
@@ -59,7 +60,7 @@ proc handshake*(client: var IPCClient) =
   info "IPC client performing handshake."
   client.send(
     HandshakePacket(
-      process: client.process
+      process: &client.process
     )
   )
   let resPacket = &client.receive(HandshakeResultPacket)
@@ -90,6 +91,65 @@ proc connect*(client: var IPCClient): string {.inline.} =
       inner(client, num + 1)
 
   inner(client)
+
+proc identifyAs*(client: var IPCClient, process: FerusProcess) {.inline, raises: [AlreadyRegisteredIdentity].} =
+  if *client.process:
+    raise newException(
+      AlreadyRegisteredIdentity,
+      "Already registered as another process. You cannot call `identifyAs` twice!"
+    )
+
+  client.process = some(process)
+
+proc info*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 0'u8,
+      message: message
+    )
+  )
+
+proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
+  if not *client.process:
+    raise newException(
+      ValueError,
+      "No process was registered before calling `setState()`. Run `identifyAs()` and provide a process first!"
+    )
+
+  var process = &client.process
+  process.state = state
+
+  client.process = some(process)
+
+  client.send(
+    ChangeStatePacket(
+      state: state
+    )
+  )
+
+proc warn*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 1'u8,
+      message: message
+    )
+  )
+
+proc error*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 2'u8,
+      message: message
+    )
+  )
+
+proc debug*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 3'u8,
+      message: message
+    )
+  )
 
 proc poll*(client: var IPCClient) =
   client.send(

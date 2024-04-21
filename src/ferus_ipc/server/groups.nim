@@ -6,6 +6,13 @@ type
     id*: uint64
     processes*: seq[FerusProcess]
 
+proc find*(group: FerusGroup, p: FerusProcess): int {.inline.} =
+  for i, process in group.processes:
+    if process == p:
+      return i
+
+  raise newException(ValueError, "Could not find process in group.")
+
 iterator items*(group: FerusGroup): lent FerusProcess {.inline.} =
   for process in group.processes:
     yield process

@@ -6,7 +6,7 @@ import jsony
 import ../shared, ./groups
 
 when defined(unix):
-  from std/posix import getuid
+  from std/posix import getuid, kill, SIGKILL
 
 when defined(release):
   const 
@@ -26,6 +26,11 @@ else:
       FerusIpcKickThreshold* = "140".parseFloat
 
 type
+  BadMessageSeverity* = enum
+    Low = 0     # probably user caused error
+    Medium = 1  # maybe compromised
+    High = 2    # probably compromised
+
   InitializationFailed* = object of Defect
   IPCServer* = object
     socket*: Socket
@@ -33,12 +38,64 @@ type
     path*: string
 
     onConnection*: proc(process: FerusProcess)
+    kickQueue: seq[FerusProcess]
+
+import pretty
 
 proc send*[T](server: IPCServer, sock: Socket, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
-  debug "Sending: " & serialized
 
   sock.send(serialized)
+
+proc commitKicks*(server: var IPCServer) {.inline.} =
+  for i, process in server.kickQueue:
+    info ("Kicking process [group:$1, pid:$2]" % [$process.group, $process.pid])
+    server.groups[process.group].processes.del(
+      server.groups[process.group].find(process)
+    )
+  
+    # ensure that the process can no longer talk to us
+    close process.socket
+
+  server.kickQueue.reset()
+
+proc kick*(server: var IPCServer, process: FerusProcess) {.inline.} =
+  if process notin server.kickQueue:
+    server.kickQueue.add(process)
+  else:
+    warn ("kick(): attempted to add process to kick queue twice [group: $1, pid: $2]" % [$process.group, $process.pid])
+
+proc reportBadMessage*(
+  server: var IPCServer, 
+  process: FerusProcess,
+  error: string,
+  severity: BadMessageSeverity
+) {.inline.} =
+  info ("PID $1 sent a bad message. Error: $2" % [$process.pid, error])
+
+  case severity:
+  of Low:
+    server.send(
+      process.socket,
+      BadMessagePacket(
+        error: error
+      )
+    )
+  of Medium:
+    server.kick(process)
+  of High:
+    # kick and kill process
+    info ("PID $1 sent a potentially maliciously crafted packet. Killing it." % [$process.pid])
+    
+    when defined(unix):
+      let res = kill(process.pid.int32, SIGKILL)
+
+      if res != 0:
+        error "Could not kill likely compromised process! Just kicking it for now."
+    else:
+      warn "Cannot kill process on unsupported platform."
+
+    server.kick(process)
 
 proc receive*(server: IPCServer, socket: Socket): string {.inline.} =
   var buff: string
@@ -57,9 +114,6 @@ proc receive*(server: IPCServer, socket: Socket): string {.inline.} =
 
     buff &= c
   
-  if buff.len > 0:
-    debug "Received buffer from socket (length $1): $2" % [$buff.len, buff]
-
   buff
 
 proc receive*[T](server: IPCServer, socket: Socket, kind: typedesc[T]): Option[T] {.inline.} =
@@ -71,9 +125,9 @@ proc receive*[T](server: IPCServer, socket: Socket, kind: typedesc[T]): Option[T
   except CatchableError:
     none T
 
-proc findDeadProcesses*(server: var IPCServer) =
+proc findDeadProcesses*(server: var IPCServer) {.noinline.} =
   let epoch = epochTime()
-  var dead: seq[tuple[gi, i: int]]
+  var dead: seq[FerusProcess]
   
   for gi, group in server.groups:
     for i, fproc in group:
@@ -102,12 +156,12 @@ proc findDeadProcesses*(server: var IPCServer) =
           info "Process has been unresponsive for $1 seconds, it is now considered dead: group=$2, pid=$3, kind=$4, worker=$5" % [
             $delta, $fproc.group, $fproc.pid, $fproc.kind, $fproc.worker
           ]
-          dead.add((gi, i))
+          dead.add(fproc)
 
       server.groups[gi][i] = mfproc
   
   for process in dead:
-    server.groups[process.gi].processes.del(process.i)
+    server.kick(process)
 
 proc acceptNewConnection*(server: var IPCServer) =
   var
@@ -177,17 +231,66 @@ proc processChangeState(
   info "PID $1 wants to change process state from $2 -> $3" % [$process.pid, $process.state, $data.state]
   
   if process.state == Dead:
-    warn "PID $1 has attempted to change its process state despite being declared dead. Ignoring." % [$process.pid]
+    server.reportBadMessage(
+      process,
+      "Dead process attempted to change state",
+      High
+    )
+    return
+
+  if data.state == Dead or data.state == Unreachable:
+    server.reportBadMessage(
+      process,
+      "Process attempted to mark itself as server-discretion-reserved state: " & $data.state,
+      High
+    )
     return
 
   process.state = data.state
+
+proc log(server: var IPCServer, process: FerusProcess, opacket: Option[FerusLogPacket]) {.inline.} =
+  if not *opacket:
+    server.reportBadMessage(
+      process,
+      "No logging data provided (or logging data failed to parse)",
+      Low
+    )
+    return
+
+  let packet = &opacket
+
+  let message = "[group:$1, pid:$2]: $3" % [$process.group, $process.pid, packet.message]
+
+  case packet.level
+  of 0:
+    info message
+  of 1:
+    warn message
+  of 2:
+    error message
+  of 3:
+    debug message
+  else:
+    server.reportBadMessage(
+      process,
+      "Log packet contains invalid logging level: " & $packet.level,
+      Medium
+    )
 
 proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
   let 
     rawData = server.receive(process.socket)
     data = tryParseJson(rawData, JsonNode)
 
+  if rawData.len < 1:
+    return
+
   if not *data:
+    server.reportBadMessage(
+      process,
+      "Invalid JSON data provided for IPC.",
+      Low
+    )
     return
 
   let 
@@ -198,6 +301,11 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       .magicFromStr()
 
   if not *kind:
+    server.reportBadMessage(
+      process,
+      "No `kind` string inside JSON IPC data.",
+      Medium
+    )
     return
   
   case &kind:
@@ -205,6 +313,13 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       process.lastContact = epochTime()
       if process.state == Dead:
         process.state = Idling
+    of feLogMessage:
+      server.log(
+        process,
+        tryParseJson(
+          rawData, FerusLogPacket
+        )
+      )
     of feChangeState:
       let changePacket = tryParseJson(
         rawData, 
@@ -230,6 +345,8 @@ proc receiveMessages*(server: var IPCServer) {.inline.} =
       var process = group[i]
       server.talk(process)
       server.groups[gi][i] = process
+
+  server.commitKicks()
 
 proc poll*(server: var IPCServer) =
   server.findDeadProcesses()

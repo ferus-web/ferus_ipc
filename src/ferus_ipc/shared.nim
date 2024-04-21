@@ -56,6 +56,26 @@ type
     ## `worker`: bool - is this process a worker? (short-lived process)
     ## `page`: uint64 - what page was this process spawned for?
     feHandshake
+    
+    ## feLogMessage
+    ## IPC clients send this to the server for it to log the message provided.
+    ## Arguments:
+    ## `level`: uint8 (between 0 .. 3) - logging level
+    ##  - 0: INFO
+    ##  - 1: WARN
+    ##  - 2: ERROR
+    ##  - 3: DEBUG
+    ## Anything above this range will trigger a bad message packet.
+    ## 
+    ## `message`: string - the message string
+    feLogMessage
+    
+    ## feBadMessage
+    ## The IPC server sends this in response to a packet that was malformed, along with a reason.
+    ## The server might disconnect and kill the recipient of this packet if it suspects a potential takeover as well.
+    ## Arguments:
+    ## `error`: string
+    feBadMessage
 
     ## feHandshakeResult
     ## The IPC server sends this in response to a `feHandshake` request.
@@ -134,6 +154,20 @@ type
     kind: FerusMagic = feChangeState
     state*: FerusProcessState
 
+  FerusLogPacket* = ref object
+    kind: FerusMagic = feLogMessage
+    level*: uint8
+    message*: string
+
+  BadMessagePacket* = ref object
+    kind: FerusMagic = feBadMessage
+    error*: string
+
+proc `==`*(a, b: FerusProcess): bool {.inline.} =
+  a.worker == b.worker and
+  a.kind == b.kind and
+  a.socket == b.socket
+
 proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
   case s
   of "feHandshake": 
@@ -158,6 +192,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feJSGetDOMElem
   of "feKeepAlive":
     return some feKeepAlive
+  of "feLogMessage":
+    return some feLogMessage
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 
