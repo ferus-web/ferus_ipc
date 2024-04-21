@@ -107,7 +107,8 @@ proc handshake*(client: var IPCClient) =
   let resPacket = &client.receive(HandshakeResultPacket)
 
   if resPacket.accepted:
-    client.onConnect()
+    if client.onConnect != nil:
+      client.onConnect()
   else:
     client.onError(resPacket.reason)
 
