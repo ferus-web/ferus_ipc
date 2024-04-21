@@ -6,6 +6,15 @@ type
     id*: uint64
     processes*: seq[FerusProcess]
 
+proc findProcess*(group: FerusGroup, kind: FerusProcessKind, pKind: ParserKind = pkCSS, workers: bool = true) {.inline.} =
+  for process in group.processes:
+    let a = process.worker == workers and process.kind == kind
+
+    if kind == Parser:
+      return a and process.pKind == pKind
+    else:
+      return a
+
 proc find*(group: FerusGroup, p: FerusProcess): int {.inline.} =
   for i, process in group.processes:
     if process == p:
