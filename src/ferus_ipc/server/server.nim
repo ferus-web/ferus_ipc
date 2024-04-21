@@ -40,8 +40,6 @@ type
     onConnection*: proc(process: FerusProcess)
     kickQueue: seq[FerusProcess]
 
-import pretty
-
 proc send*[T](server: IPCServer, sock: Socket, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
 
