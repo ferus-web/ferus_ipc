@@ -59,6 +59,14 @@ proc debug*(client: var IPCClient, message: string) {.inline.} =
     )
   )
 
+proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
+  try:
+    data
+      .fromJson(kind)
+      .some()
+  except CatchableError:
+    none T
+
 proc receive*(client: var IPCClient): string {.inline.} =
   var buff: string
   
