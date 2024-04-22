@@ -99,6 +99,7 @@ proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline
 proc handshake*(client: var IPCClient) =
   when not defined(ferusInJail):
     info "IPC client performing handshake."
+
   client.send(
     HandshakePacket(
       process: &client.process
@@ -112,7 +113,7 @@ proc handshake*(client: var IPCClient) =
   else:
     client.onError(resPacket.reason)
 
-proc connect*(client: var IPCClient): string {.inline.} =
+proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
     let path = "/var" / "run" / "user" / $getuid() / "ferus-ipc-master-" & $num & ".sock"
 
@@ -136,7 +137,13 @@ proc connect*(client: var IPCClient): string {.inline.} =
 
       inner(client, num + 1)
 
-  inner(client)
+  if not *path:
+    inner(client)
+  else:
+    client.socket.connectUnix(&path)
+    client.path = &path
+
+    &path
 
 proc identifyAs*(client: var IPCClient, process: FerusProcess) {.inline, raises: [AlreadyRegisteredIdentity].} =
   if *client.process:
