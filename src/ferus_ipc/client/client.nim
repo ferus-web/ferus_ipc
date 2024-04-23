@@ -71,11 +71,7 @@ proc receive*(client: var IPCClient): string {.inline.} =
   var buff: string
   
   while true:
-    var c: string
-    try:
-      c = client.socket.recv(1, timeout = 60)
-    except TimeoutError:
-      break
+    let c = client.socket.recv(1)
 
     if c == "":
       break
