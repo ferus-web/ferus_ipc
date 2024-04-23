@@ -71,7 +71,11 @@ proc receive*(client: var IPCClient): string {.inline.} =
   var buff: string
   
   while true:
-    let c = client.socket.recv(1)
+    var c: string
+    try:
+      c = client.socket.recv(1, timeout = 2)
+    except TimeoutError:
+      break
 
     if c == "":
       break
@@ -145,7 +149,7 @@ proc connect*(client: var IPCClient, path: Option[string] = none string): string
           quit(1)
 
       inner(client, num + 1)
-
+  
   if not *path:
     inner(client)
   else:
