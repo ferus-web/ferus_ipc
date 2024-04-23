@@ -119,7 +119,8 @@ proc handshake*(client: var IPCClient) =
     if client.onConnect != nil:
       client.onConnect()
   else:
-    client.onError(resPacket.reason)
+    if client.onError != nil:
+      client.onError(resPacket.reason)
 
 proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
