@@ -12,6 +12,7 @@ type
     Network = 0           ## Network process (HTTP/Gemini/FTP/etc.)
     JSRuntime = 1         ## JS runtime (Tokenizer+Parser+VM)
     Parser = 2            ## Generic parser (HTML/CSS/JSON; see `ParserKind`)
+    Renderer = 3          ## Renderer process
 
   ParserKind* = enum
     pkCSS = 0 
@@ -109,7 +110,7 @@ type
 
     ## feNetworkFetch
     ## The IPC server sends this to a network process when it needs to fetch a network resource.
-    ## url: string - a JSON string that must be convertable to Sanchar's URL type.
+    ## `url`: string - a JSON string that must be convertable to Sanchar's URL type.
     feNetworkFetch
 
     ## feJSExec
@@ -134,7 +135,12 @@ type
     ## feKeepAlive
     ## IPC clients send this to indicate that they are still alive, and when you'll be dying they'll be still alive, and when you'll be dead they'll be still alive.
     feKeepAlive
-  
+
+    ## feRendererMutation
+    ## The IPC server sends this when it wants a renderer process to mutate its scene tree.
+    ## `list`: ferusgfx.DisplayList - the display list that will be committed
+    feRendererMutation
+
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
     kind: FerusMagic = feHandshake
