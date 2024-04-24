@@ -138,9 +138,14 @@ type
 
     ## feRendererMutation
     ## The IPC server sends this when it wants a renderer process to mutate its scene tree.
-    ## `list`: ferusgfx.DisplayList - the display list that will be committed
+    ## `list`: IPCDisplayList - the display list that will be committed once it is resolved into a `DisplayList`
     feRendererMutation
 
+    ## feRendererLoadFont
+    ## The IPC server sends this when it wants a renderer process to load a font file
+    ## `content`: string - the font data
+    feRendererLoadFont
+    
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
     kind: FerusMagic = feHandshake
