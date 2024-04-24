@@ -139,6 +139,10 @@ type
     ## feRendererMutation
     ## The IPC server sends this when it wants a renderer process to mutate its scene tree.
     ## `list`: IPCDisplayList - the display list that will be committed once it is resolved into a `DisplayList`
+    ## `dkind`: uint - The kind of drawable that this is
+    ##  - 0: text node
+    ##  - 1: image node
+    ##  - 2: GIF node
     feRendererMutation
 
     ## feRendererLoadFont

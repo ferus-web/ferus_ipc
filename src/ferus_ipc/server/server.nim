@@ -334,6 +334,11 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         )
     else: discard
 
+  server.send(
+    process.socket,
+    KeepAlivePacket()
+  )
+
 proc receiveMessages*(server: var IPCServer) {.inline.} =
   for gi, group in server.groups:
     validate group
