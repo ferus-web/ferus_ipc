@@ -137,18 +137,28 @@ type
     feKeepAlive
 
     ## feRendererMutation
-    ## The IPC server sends this when it wants a renderer process to mutate its scene tree.
+    ## The IPC server sends this when it wants the renderer process to mutate its scene tree.
     ## `list`: IPCDisplayList - the display list that will be committed once it is resolved into a `DisplayList`
-    ## `dkind`: uint - The kind of drawable that this is
-    ##  - 0: text node
-    ##  - 1: image node
-    ##  - 2: GIF node
     feRendererMutation
 
     ## feRendererLoadFont
     ## The IPC server sends this when it wants a renderer process to load a font file
     ## `content`: string - the font data
     feRendererLoadFont
+
+    ## feRendererExit
+    ## A renderer client will send this to the IPC server when it's about to gracefully exit.
+    feRendererExit
+
+    ## feRendererSetWindowTitle
+    ## The IPC server sends this to the renderer process along with the new title.
+    ## `title`: string - the new window title
+    feRendererSetWindowTitle
+
+    ## feHtmlParserResult
+    ## A HTML parser will send this to the IPC server when it's done parsing, along with a HTML document.
+    ## `document`: Document - the parsed HTML document
+    feHtmlParserResult
     
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
