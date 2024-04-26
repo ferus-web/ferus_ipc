@@ -209,6 +209,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feKeepAlive
   of "feLogMessage":
     return some feLogMessage
+  of "feRendererLoadFont":
+    return some feRendererLoadFont
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 
