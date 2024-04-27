@@ -124,7 +124,16 @@ proc handshake*(client: var IPCClient) =
 
 proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
-    let path = "/var" / "run" / "user" / $getuid() / "ferus-ipc-master-" & $num & ".sock"
+    when not defined(ferusInJail):
+      if not existsEnv("XDG_RUNTIME_DIR"):
+        raise newException(
+          InitializationFailed,
+          "XDG_RUNTIME_DIR is not set. The IPC client cannot find any server to connect to."
+        )
+    else:
+      quit 1
+
+    let path = getEnv("XDG_RUNTIME_DIR") / "ferus-ipc-master-" & $num & ".sock"
 
     try:
       client.socket.connectUnix(path)

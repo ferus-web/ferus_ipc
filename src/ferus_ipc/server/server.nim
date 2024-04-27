@@ -361,9 +361,15 @@ proc `=destroy`*(server: IPCServer) =
 
 proc bindServerPath*(server: var IPCServer): string =
   proc bindOptimalPath(socket: Socket, num: int = 0): string =
+    if not existsEnv("XDG_RUNTIME_DIR"):
+      raise newException(
+        InitializationFailed,
+        "XDG_RUNTIME_DIR is not set. Ferus cannot start an IPC server!"
+      )
+
     let 
       uid = getuid().int
-      curr = "/var" / "run" / "user" / $uid / "ferus-ipc-master-" & $num & ".sock"
+      curr = getEnv("XDG_RUNTIME_DIR") / "ferus-ipc-master-" & $num & ".sock"
 
     try:
       socket.bindUnix(curr)
