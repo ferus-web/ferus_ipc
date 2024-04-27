@@ -225,6 +225,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feRendererSetWindowTitle
   of "feHtmlParserResult":
     return some feHtmlParserResult
+  of "feRendererMutation":
+    return some feRendererMutation
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 
