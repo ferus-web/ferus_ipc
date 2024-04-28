@@ -388,12 +388,6 @@ proc bindServerPath*(server: var IPCServer): string =
       return bindOptimalPath(socket, num + 1)
 
   when defined(unix):
-    if not dirExists("/var" / "run" / "user" / $getuid()):
-      raise newException(
-        InitializationFailed,
-        "Your system does not have a /var/run/user/$1 directory. Ferus' IPC server cannot bind to another path." % [$getuid()]
-      )
-
     return bindOptimalPath(server.socket)
 
   raise newException(
