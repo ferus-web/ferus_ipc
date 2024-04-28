@@ -159,11 +159,25 @@ type
     ## A HTML parser will send this to the IPC server when it's done parsing, along with a HTML document.
     ## `document`: Document - the parsed HTML document
     feHtmlParserResult
+
+    ## feExitPacket
+    ## IPC clients send this when they're about to exit.
+    ## `reason`: ExitReason - the reason why the process is exiting
+    feExitPacket
     
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
     kind: FerusMagic = feHandshake
     process*: FerusProcess
+  
+  ExitReason* = enum
+    erUnknown           ## Unhandled crash, most likely.
+    erSandboxViolation  ## Sandbox violation, via SIGSYS hook.
+    erServerRequest     ## Server requested this process to exit.
+
+  ExitPacket* = ref object
+    kind: FerusMagic = feExitPacket
+    reason*: ExitReason
 
   HandshakeResultPacket* = ref object
     kind: FerusMagic = feHandshakeResult
@@ -227,6 +241,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feHtmlParserResult
   of "feRendererMutation":
     return some feRendererMutation
+  of "feExitPacket":
+    return some feExitPacket
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 
