@@ -1,9 +1,7 @@
-import std/[os, logging, options], colored_logger, ferus_ipc/client/prelude
-
-let logger = newColoredLogger()
-addHandler logger
+import std/[os, logging, options], ferus_ipc/client/prelude
 
 var client = newIPCClient()
+addHandler newIPCLogger(lvlAll, client)
 # client.broadcastVersion("0.1.0")
 client.identifyAs(
   FerusProcess(
@@ -14,7 +12,7 @@ client.identifyAs(
 )
 
 client.onConnect = proc =
-    echo "We're connected!"
+    info "We're connected!"
 
 client.onError = proc(error: FailedHandshakeReason) =
     case error
@@ -25,8 +23,7 @@ client.onError = proc(error: FailedHandshakeReason) =
 let path = client.connect()
 
 client.handshake()
-client.setState(Dead) # we're gonna get killed after we send this since the server detects that we're doing something silly and probably got taken over
-client.error("failed to do non existent task!")
+error("failed to do non existent task!")
 
 # we need to keep calling `poll` otherwise the IPC server will consider us unresponsive and finally dead!
 while true:
