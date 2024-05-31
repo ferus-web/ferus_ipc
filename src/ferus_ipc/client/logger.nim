@@ -1,7 +1,7 @@
 ## A soft shell around `std/logging` to easily attach a log handler that redirects all logs to the IPC server.
 ## Copyright (C) 2024 Trayambak Rai and Ferus Authors
 import std/[logging]
-import ./[prelude]
+import ./[client]
 
 type
   IPCLogger* = ref object of ConsoleLogger

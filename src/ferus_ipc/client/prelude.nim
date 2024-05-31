@@ -1,3 +1,3 @@
-import client
+import client, logger
 
-export client
+export client, logger
