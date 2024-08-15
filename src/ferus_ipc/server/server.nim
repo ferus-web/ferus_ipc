@@ -2,11 +2,25 @@ import std/[
   os, logging, net, options, 
   sugar, strutils, times, json
 ]
+
+when defined(ssl):
+  import std/openssl
+
 import jsony
 import ../shared, ./groups
 
 when defined(unix):
   from std/posix import getuid, kill, SIGKILL
+
+when defined(ssl):
+  proc parseHook*(s: string, i: int, v2: SslPtr) =
+    discard
+
+  proc parseHook*(s: string, i: int, v2: SslServerGetPskFunc) =
+    discard
+
+  proc parseHook*(s: string, i: int, v2: SslClientGetPskFunc) =
+    discard
 
 when defined(release):
   const 
