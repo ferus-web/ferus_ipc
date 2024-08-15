@@ -162,6 +162,15 @@ type
     ## `document`: Document - the parsed HTML document
     feHtmlParserResult
 
+    ## feCookieWorkerStore
+    ## The IPC server sends this to a cookie worker when it needs to store a cookie.
+    ## `cookie`: `components.web.cookie.ParsedCookie` - the parsed cookie
+    feCookieWorkerStore
+
+    ## feCookieWorkerSave
+    ## The IPC server sends this to a cookie worker when it needs to force the worker to immediately save all data.
+    feCookieWorkerSave
+
     ## feExitPacket
     ## IPC clients send this when they're about to exit.
     ## `reason`: ExitReason - the reason why the process is exiting
