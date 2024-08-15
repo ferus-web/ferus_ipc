@@ -13,6 +13,8 @@ type
     JSRuntime = 1         ## JS runtime (Tokenizer+Parser+VM)
     Parser = 2            ## Generic parser (HTML/CSS/JSON; see `ParserKind`)
     Renderer = 3          ## Renderer process
+    CachingWorker = 4     ## Sits around and caches web content
+    CookieWorker = 5      ## Sits around and stores cookies provided by the master process
 
   ParserKind* = enum
     pkCSS = 0 
