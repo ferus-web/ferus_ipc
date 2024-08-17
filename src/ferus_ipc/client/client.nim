@@ -1,4 +1,4 @@
-import std/[os, net, options, sugar, times], jsony
+import std/[os, net, options, sugar, times, sets], jsony
 import ../shared
 
 when not defined(ferusInJail):
@@ -6,6 +6,13 @@ when not defined(ferusInJail):
 
 when defined(unix):
   from std/posix import getuid
+
+when defined(ssl):
+  import std/openssl
+
+  proc dumpHook*(s: var string, v: SslPtr) = discard
+  proc dumpHook*(s: var string, v: SslServerGetPskFunc) = discard
+  proc dumpHook*(s: var string, v: SslClientGetPskFunc) = discard
 
 type
   AlreadyRegisteredIdentity* = object of CatchableError
