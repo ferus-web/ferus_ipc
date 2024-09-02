@@ -10,10 +10,10 @@ proc findProcess*(group: FerusGroup, kind: FerusProcessKind, pKind: ParserKind =
   for process in group.processes:
     let a = process.worker == workers and process.kind == kind
 
-    if kind == Parser:
+    if a and kind == Parser:
       if a and process.pKind == pKind:
         return process.some()
-    else:
+    elif a and kind != Parser:
       return process.some()
 
 proc find*(group: FerusGroup, p: FerusProcess): int {.inline.} =
