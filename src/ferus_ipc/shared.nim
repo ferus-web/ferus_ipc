@@ -257,6 +257,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feHtmlParserResult
   of "feRendererMutation":
     return some feRendererMutation
+  of "feRendererRenderDocument":
+    return some feRendererRenderDocument
   of "feExitPacket":
     return some feExitPacket
   else:
