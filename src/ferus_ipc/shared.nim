@@ -171,6 +171,11 @@ type
     ## The IPC server sends this to a cookie worker when it needs to force the worker to immediately save all data.
     feCookieWorkerSave
 
+    ## feRendererRenderDocument
+    ## The IPC server sends this when it wants the renderer process to lay out a document and render it.
+    ## `document`: `components.parsers.html.HTMLDocument` - the HTML document
+    feRendererRenderDocument
+
     ## feExitPacket
     ## IPC clients send this when they're about to exit.
     ## `reason`: ExitReason - the reason why the process is exiting
