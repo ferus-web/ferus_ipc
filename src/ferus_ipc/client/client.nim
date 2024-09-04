@@ -4,6 +4,13 @@ import ../shared
 when not defined(ferusInJail):
   import std/logging
 
+proc `*`[T](opt: Option[T]): bool {.inline, noSideEffect, gcsafe.} =
+  # dumb hacks to make code look less yucky
+  opt.isSome
+
+proc `&`[T](opt: Option[T]): T {.inline, noSideEffect, gcsafe.} =
+  opt.get()
+
 when defined(unix):
   from std/posix import getuid
 

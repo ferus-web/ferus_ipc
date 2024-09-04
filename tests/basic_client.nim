@@ -28,7 +28,7 @@ error("failed to do non existent task!")
 var location = DataLocation(kind: DataLocationKind.WebRequest, url: "totallyrealwebsite.xyz")
 let value = client.requestDataTransfer(ResourceRequired, location)
 
-echo (&value).data
+echo value.get.data
 
 # we need to keep calling `poll` otherwise the IPC server will consider us unresponsive and finally dead!
 while true:
