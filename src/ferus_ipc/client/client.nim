@@ -66,7 +66,7 @@ proc debug*(client: var IPCClient, message: string) {.inline.} =
     )
   )
 
-proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
+func tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
   try:
     data
       .fromJson(kind)
@@ -90,11 +90,12 @@ proc receive*(client: var IPCClient): string {.inline.} =
       discard
 
     buff &= c
-
+  
   buff
 
 proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline.} =
   let data = client.receive()
+  echo "data: " & data
 
   try:
     data
@@ -129,7 +130,15 @@ proc handshake*(client: var IPCClient) =
     if client.onError != nil:
       client.onError(resPacket.reason)
 
-proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline.} =
+proc requestDataTransfer*(client: var IPCClient, reason: DataTransferReason, location: sink DataLocation): Option[DataTransferResult] =
+  client.send(
+    DataTransferRequest(reason: reason, location: location)
+  )
+  
+  echo "recving transfer"
+  client.receive(DataTransferResult)
+
+proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline, discardable.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
     when not defined(ferusInJail):
       if not existsEnv("XDG_RUNTIME_DIR"):

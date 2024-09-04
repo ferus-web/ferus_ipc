@@ -52,6 +52,7 @@ type
     path*: string
 
     onConnection*: proc(process: FerusProcess)
+    onDataTransfer*: proc(process: FerusProcess, request: DataTransferRequest)
     kickQueue: seq[FerusProcess]
 
 proc send*[T](server: IPCServer, sock: Socket, data: T) {.inline.} =
@@ -346,12 +347,17 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           process,
           &changePacket
         )
-    else: discard
+    of feDataTransferRequest:
+      let transferRequest = tryParseJson(
+        rawData, DataTransferRequest
+      )
 
-  server.send(
-    process.socket,
-    KeepAlivePacket()
-  )
+      if not *transferRequest:
+        return
+      
+      if server.onDataTransfer != nil:
+        server.onDataTransfer(process, &transferRequest)
+    else: discard
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =
   for gi, group in server.groups:

@@ -1,6 +1,7 @@
 import std/[logging, options]
 import colored_logger
 import ferus_ipc/server/prelude
+import jsony
 
 let logger = newColoredLogger()
 addHandler logger
@@ -17,6 +18,14 @@ server.onConnection = proc(process: FerusProcess) =
 
 # Block until a new connection is made
 server.acceptNewConnection()
+
+server.onDataTransfer = proc(process: FerusProcess, request: DataTransferRequest) =
+  echo "acting on data transfer"
+
+  server.send(
+    process.socket,
+    DataTransferResult(success: true, data: "verycoolindeed")
+  )
 
 while true:
   server.poll()

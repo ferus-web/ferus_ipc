@@ -56,10 +56,10 @@ type
     WebRequest
     FileRequest
 
-  DataLocation*[T] = object
+  DataLocation* = object
     case kind*: DataLocationKind
     of WebRequest:
-      url*: T
+      url*: string
     of FileRequest:
       path*: string
 
@@ -211,13 +211,17 @@ type
     ## `reason`: ExitReason - the reason why the process is exiting
     feExitPacket
 
-  DataTransferRequest*[T] = ref object
+  DataTransferRequest* = ref object
+    kind: FerusMagic = feDataTransferRequest
+
     reason*: DataTransferReason
     location*: DataLocation
-    kind*: typedesc[T]
 
-  DataTransferResult*[T] = ref object
-    data*: T
+  DataTransferResult* = ref object
+    kind: FerusMagic = feDataTransferResult
+
+    success*: bool
+    data*: string
 
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
