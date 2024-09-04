@@ -196,6 +196,11 @@ type
     ## `location`: `DataLocation`
     feDataTransferRequest
 
+    ## feDataTransferResult
+    ## The IPC server sends this when it processes a data transfer request
+    ## `data`: `T`
+    feDataTransferResult
+
     ## feRendererGotoURL
     ## The renderer process sends this the user clicks on a link and the renderer needs to go to that particular link
     ## `url`: URL
@@ -205,6 +210,14 @@ type
     ## IPC clients send this when they're about to exit.
     ## `reason`: ExitReason - the reason why the process is exiting
     feExitPacket
+
+  DataTransferRequest*[T] = ref object
+    reason*: DataTransferReason
+    location*: DataLocation
+    kind*: typedesc[T]
+
+  DataTransferResult*[T] = ref object
+    data*: T
 
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
