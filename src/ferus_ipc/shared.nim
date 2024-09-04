@@ -48,6 +48,20 @@ type
     of Parser:
       pKind*: ParserKind      ## What does this process parse?
     else: discard
+  
+  DataTransferReason* = enum
+    ResourceRequired
+
+  DataLocationKind* {.pure.} = enum
+    WebRequest
+    FileRequest
+
+  DataLocation*[T] = object
+    case kind*: DataLocationKind
+    of WebRequest:
+      url*: T
+    of FileRequest:
+      path*: string
 
   FerusMagic* = enum
     ## feHandshake
@@ -176,11 +190,22 @@ type
     ## `document`: `components.parsers.html.HTMLDocument` - the HTML document
     feRendererRenderDocument
 
+    ## feDataTransferRequest
+    ## An IPC client sends this when it wants the server to fetch some data. The server might refuse this data transfer if it feels like it.
+    ## `reason`: `DataTransferReason`
+    ## `location`: `DataLocation`
+    feDataTransferRequest
+
+    ## feRendererGotoURL
+    ## The renderer process sends this the user clicks on a link and the renderer needs to go to that particular link
+    ## `url`: URL
+    feRendererGotoURL
+
     ## feExitPacket
     ## IPC clients send this when they're about to exit.
     ## `reason`: ExitReason - the reason why the process is exiting
     feExitPacket
-    
+
   # TODO: might wanna move these into their own file
   HandshakePacket* = ref object
     kind: FerusMagic = feHandshake
@@ -259,6 +284,10 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feRendererMutation
   of "feRendererRenderDocument":
     return some feRendererRenderDocument
+  of "feRendererGotoURL":
+    return some feRendererGotoURL
+  of "feDataTransferRequest":
+    return some feDataTransferRequest
   of "feExitPacket":
     return some feExitPacket
   else:
