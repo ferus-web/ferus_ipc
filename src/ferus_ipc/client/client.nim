@@ -73,7 +73,7 @@ proc debug*(client: var IPCClient, message: string) {.inline.} =
     )
   )
 
-func tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
+proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
   try:
     data
       .fromJson(kind)
