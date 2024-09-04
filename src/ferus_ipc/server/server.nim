@@ -365,7 +365,10 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       
       if server.onDataTransfer != nil:
         server.onDataTransfer(process, &transferRequest)
+        return
     else: discard
+
+  server.send(process.socket, KeepAlivePacket())
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =
   for gi, group in server.groups:
