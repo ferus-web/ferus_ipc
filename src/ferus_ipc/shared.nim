@@ -1,10 +1,10 @@
 import std/[times, net, logging, options]
 
-proc `*`*[T](opt: Option[T]): bool {.inline, noSideEffect, gcsafe.} =
+proc `*`[T](opt: Option[T]): bool {.inline, noSideEffect, gcsafe.} =
   # dumb hacks to make code look less yucky
   opt.isSome
 
-proc `&`*[T](opt: Option[T]): T {.inline, noSideEffect, gcsafe.} =
+proc `&`[T](opt: Option[T]): T {.inline, noSideEffect, gcsafe.} =
   opt.get()
 
 type
