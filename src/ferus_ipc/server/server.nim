@@ -17,7 +17,7 @@ import jsony
 import ../shared, ./groups
 
 when defined(unix):
-  from std/posix import getuid, kill, SIGKILL
+  from std/posix import getuid, kill, SIGKILL, unlink
 
 when defined(ssl):
   proc parseHook*(s: string, i: int, v2: SslPtr) =
@@ -60,6 +60,7 @@ type
 
     onConnection*: proc(process: FerusProcess)
     onDataTransfer*: proc(process: FerusProcess, request: DataTransferRequest)
+
     kickQueue: seq[FerusProcess]
 
 proc send*[T](server: IPCServer, sock: Socket, data: T) {.inline.} =
@@ -384,7 +385,10 @@ proc poll*(server: var IPCServer) =
 
 proc `=destroy`*(server: IPCServer) =
   info "IPC server is now shutting down; closing socket!"
-  server.socket.close()
+
+  if server.path.len > 0:
+    discard unlink(server.path.cstring)
+    server.socket.close()
 
 proc bindServerPath*(server: var IPCServer): string =
   proc bindOptimalPath(socket: Socket, num: int = 0): string =
