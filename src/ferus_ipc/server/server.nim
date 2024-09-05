@@ -235,7 +235,7 @@ proc add*(server: var IPCServer, group: FerusGroup): uint64 {.discardable, inlin
   var mGroup = deepCopy(group)
   let id = server.groups.len.uint64
   mGroup.id = id
-  server.groups.add(move(mGroup))
+  server.groups.add(mGroup)
 
   id
 
