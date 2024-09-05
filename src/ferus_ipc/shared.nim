@@ -43,7 +43,6 @@ type
     lastContact*: float
     
     state*: FerusProcessState ## What is this process doing?
-    transferring*: bool = false ## Are we transferring resources to this process? If yes, we won't send any keep-alive packets as that'd make the entire process noisy.
 
     case kind*: FerusProcessKind
     of Parser:

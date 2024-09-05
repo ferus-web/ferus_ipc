@@ -338,9 +338,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       if process.state == Dead:
         process.state = Idling
       
-      if not process.transferring:
-        echo "keep alive"
-        server.send(process.socket, KeepAlivePacket())
+      server.send(process.socket, KeepAlivePacket())
     of feLogMessage:
       server.log(
         process,
@@ -349,9 +347,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         )
       )
 
-      if not process.transferring:
-        echo "log msg"
-        server.send(process.socket, KeepAlivePacket())
+      server.send(process.socket, KeepAlivePacket())
     of feChangeState:
       let changePacket = tryParseJson(
         rawData, 
@@ -367,9 +363,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           &changePacket
         )
 
-      if not process.transferring:
-        echo "change state"
-        server.send(process.socket, KeepAlivePacket())
+      server.send(process.socket, KeepAlivePacket())
     of feDataTransferRequest:
       let transferRequest = tryParseJson(
         rawData, DataTransferRequest
@@ -379,9 +373,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         return
       
       if server.onDataTransfer != nil:
-        process.transferring = true
         server.onDataTransfer(process, &transferRequest)
-        process.transferring = false
     else: discard
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =

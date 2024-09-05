@@ -30,7 +30,7 @@ let value = client.requestDataTransfer(ResourceRequired, location)
 echo value.get.data
 
 # we need to keep calling `poll` otherwise the IPC server will consider us unresponsive and finally dead!
-#while true:
-#  client.poll()
+while true:
+  client.poll()
 
 # no need to call `client.close()`, ORC manages that for you ;)

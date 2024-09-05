@@ -33,7 +33,6 @@ type
 
     onConnect*: proc()
     onError*: proc(error: FailedHandshakeReason)
-    transferring*: bool = false
 
 proc send*[T](client: var IPCClient, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
@@ -73,7 +72,6 @@ proc receive*(client: var IPCClient): string {.inline, gcsafe.} =
 
 proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline, gcsafe.} =
   let data = client.receive()
-  echo "data: " & data
 
   try:
     data
@@ -150,16 +148,11 @@ proc handshake*(client: var IPCClient) =
       client.onError(resPacket.reason)
 
 proc requestDataTransfer*(client: var IPCClient, reason: DataTransferReason, location: sink DataLocation): Option[DataTransferResult] =
-  client.transferring = true
-
   client.send(
     DataTransferRequest(reason: reason, location: location)
   )
   
-  echo "recving transfer"
   let resp = client.receive(DataTransferResult)
-
-  client.transferring = false
 
   resp
 
@@ -232,8 +225,6 @@ proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
   )
 
 proc poll*(client: var IPCClient) =
-  if client.transferring: return
-
   client.send(
     KeepAlivePacket()
   )
