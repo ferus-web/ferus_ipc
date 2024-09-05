@@ -96,8 +96,6 @@ proc info*(client: var IPCClient, message: string) {.inline.} =
     )
   )
 
-  discard client.receive(KeepAlivePacket)
-
 proc warn*(client: var IPCClient, message: string) {.inline.} =
   client.send(
     FerusLogPacket(
@@ -105,8 +103,6 @@ proc warn*(client: var IPCClient, message: string) {.inline.} =
       message: message
     )
   )
-
-  discard client.receive(KeepAlivePacket)
 
 proc error*(client: var IPCClient, message: string) {.inline.} =
   client.send(
@@ -116,8 +112,6 @@ proc error*(client: var IPCClient, message: string) {.inline.} =
     )
   )
 
-  discard client.receive(KeepAlivePacket)
-
 proc debug*(client: var IPCClient, message: string) {.inline, gcsafe.} =
   client.send(
     FerusLogPacket(
@@ -126,8 +120,6 @@ proc debug*(client: var IPCClient, message: string) {.inline, gcsafe.} =
     )
   )
  
-  discard client.receive(KeepAlivePacket)
-
 proc handshake*(client: var IPCClient) =
   when not defined(ferusInJail):
     info "IPC client performing handshake."
@@ -152,9 +144,7 @@ proc requestDataTransfer*(client: var IPCClient, reason: DataTransferReason, loc
     DataTransferRequest(reason: reason, location: location)
   )
   
-  let resp = client.receive(DataTransferResult)
-
-  resp
+  client.receive(DataTransferResult)
 
 proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline, discardable.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =

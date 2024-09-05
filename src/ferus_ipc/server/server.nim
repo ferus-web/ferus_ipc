@@ -347,7 +347,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         )
       )
 
-      server.send(process.socket, KeepAlivePacket())
+      # server.send(process.socket, KeepAlivePacket())
     of feChangeState:
       let changePacket = tryParseJson(
         rawData, 
