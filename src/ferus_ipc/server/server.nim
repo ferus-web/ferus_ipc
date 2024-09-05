@@ -334,6 +334,8 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       process.lastContact = epochTime()
       if process.state == Dead:
         process.state = Idling
+
+      server.send(process.socket, KeepAlivePacket())
     of feLogMessage:
       server.log(
         process,
@@ -341,6 +343,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           rawData, FerusLogPacket
         )
       )
+      server.send(process.socket, KeepAlivePacket())
     of feChangeState:
       let changePacket = tryParseJson(
         rawData, 
@@ -355,6 +358,7 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           process,
           &changePacket
         )
+      server.send(process.socket, KeepAlivePacket())
     of feDataTransferRequest:
       let transferRequest = tryParseJson(
         rawData, DataTransferRequest
@@ -367,8 +371,6 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         server.onDataTransfer(process, &transferRequest)
         return
     else: discard
-
-  server.send(process.socket, KeepAlivePacket())
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =
   for gi, group in server.groups:
