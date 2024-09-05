@@ -12,7 +12,7 @@ proc newIPCLogger*(levelThreshold = lvlAll, ipc: IPCClient): IPCLogger {.inline.
 
 method log*(
   logger: IPCLogger, level: Level, args: varargs[string, `$`]
-) =
+) {.gcsafe.} =
   let msg = substituteLog("", level, args)
 
   case level

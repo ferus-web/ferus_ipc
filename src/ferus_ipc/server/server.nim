@@ -231,10 +231,13 @@ proc acceptNewConnection*(server: var IPCServer) =
     )
   )
 
-proc add*(server: var IPCServer, group: FerusGroup) {.inline.} =
+proc add*(server: var IPCServer, group: FerusGroup): uint64 {.discardable, inline.} =
   var mGroup = deepCopy(group)
-  mGroup.id = (server.groups.len).uint64
-  server.groups.add(mGroup)
+  let id = server.groups.len.uint64
+  mGroup.id = id
+  server.groups.add(move(mGroup))
+
+  id
 
 proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
   try:
@@ -334,8 +337,10 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
       process.lastContact = epochTime()
       if process.state == Dead:
         process.state = Idling
-
-      server.send(process.socket, KeepAlivePacket())
+      
+      if not process.transferring:
+        echo "keep alive"
+        server.send(process.socket, KeepAlivePacket())
     of feLogMessage:
       server.log(
         process,
@@ -343,7 +348,10 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           rawData, FerusLogPacket
         )
       )
-      server.send(process.socket, KeepAlivePacket())
+
+      if not process.transferring:
+        echo "log msg"
+        server.send(process.socket, KeepAlivePacket())
     of feChangeState:
       let changePacket = tryParseJson(
         rawData, 
@@ -358,7 +366,10 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
           process,
           &changePacket
         )
-      server.send(process.socket, KeepAlivePacket())
+
+      if not process.transferring:
+        echo "change state"
+        server.send(process.socket, KeepAlivePacket())
     of feDataTransferRequest:
       let transferRequest = tryParseJson(
         rawData, DataTransferRequest
@@ -368,8 +379,9 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         return
       
       if server.onDataTransfer != nil:
+        process.transferring = true
         server.onDataTransfer(process, &transferRequest)
-        return
+        process.transferring = false
     else: discard
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =

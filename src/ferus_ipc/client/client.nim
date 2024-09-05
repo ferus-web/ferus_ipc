@@ -33,6 +33,7 @@ type
 
     onConnect*: proc()
     onError*: proc(error: FailedHandshakeReason)
+    transferring*: bool = false
 
 proc send*[T](client: var IPCClient, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
@@ -40,38 +41,6 @@ proc send*[T](client: var IPCClient, data: T) {.inline.} =
   # debug "Sending: " & serialized
 
   client.socket.send(serialized)
-
-proc info*(client: var IPCClient, message: string) {.inline.} =
-  client.send(
-    FerusLogPacket(
-      level: 0'u8,
-      message: message
-    )
-  )
-
-proc warn*(client: var IPCClient, message: string) {.inline.} =
-  client.send(
-    FerusLogPacket(
-      level: 1'u8,
-      message: message
-    )
-  )
-
-proc error*(client: var IPCClient, message: string) {.inline.} =
-  client.send(
-    FerusLogPacket(
-      level: 2'u8,
-      message: message
-    )
-  )
-
-proc debug*(client: var IPCClient, message: string) {.inline.} =
-  client.send(
-    FerusLogPacket(
-      level: 3'u8,
-      message: message
-    )
-  )
 
 proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
   try:
@@ -81,7 +50,9 @@ proc tryParseJson*[T](data: string, kind: typedesc[T]): Option[T] {.inline.} =
   except CatchableError:
     none T
 
-proc receive*(client: var IPCClient): string {.inline.} =
+proc warn*(client: var IPCClient, message: string) {.inline, gcsafe.}
+
+proc receive*(client: var IPCClient): string {.inline, gcsafe.} =
   var buff: string
   
   while true:
@@ -100,7 +71,7 @@ proc receive*(client: var IPCClient): string {.inline.} =
   
   buff
 
-proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline.} =
+proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline, gcsafe.} =
   let data = client.receive()
   echo "data: " & data
 
@@ -119,6 +90,46 @@ proc receive*[T](client: var IPCClient, struct: typedesc[T]): Option[T] {.inline
     
     none T
 
+proc info*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 0'u8,
+      message: message
+    )
+  )
+
+  discard client.receive(KeepAlivePacket)
+
+proc warn*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 1'u8,
+      message: message
+    )
+  )
+
+  discard client.receive(KeepAlivePacket)
+
+proc error*(client: var IPCClient, message: string) {.inline.} =
+  client.send(
+    FerusLogPacket(
+      level: 2'u8,
+      message: message
+    )
+  )
+
+  discard client.receive(KeepAlivePacket)
+
+proc debug*(client: var IPCClient, message: string) {.inline, gcsafe.} =
+  client.send(
+    FerusLogPacket(
+      level: 3'u8,
+      message: message
+    )
+  )
+ 
+  discard client.receive(KeepAlivePacket)
+
 proc handshake*(client: var IPCClient) =
   when not defined(ferusInJail):
     info "IPC client performing handshake."
@@ -128,6 +139,7 @@ proc handshake*(client: var IPCClient) =
       process: &client.process
     )
   )
+
   let resPacket = &client.receive(HandshakeResultPacket)
 
   if resPacket.accepted:
@@ -138,12 +150,18 @@ proc handshake*(client: var IPCClient) =
       client.onError(resPacket.reason)
 
 proc requestDataTransfer*(client: var IPCClient, reason: DataTransferReason, location: sink DataLocation): Option[DataTransferResult] =
+  client.transferring = true
+
   client.send(
     DataTransferRequest(reason: reason, location: location)
   )
   
   echo "recving transfer"
-  client.receive(DataTransferResult)
+  let resp = client.receive(DataTransferResult)
+
+  client.transferring = false
+
+  resp
 
 proc connect*(client: var IPCClient, path: Option[string] = none string): string {.inline, discardable.} =
   proc inner(client: var IPCClient, num: int = 0): string {.inline.} =
@@ -188,23 +206,19 @@ proc connect*(client: var IPCClient, path: Option[string] = none string): string
 
 proc identifyAs*(client: var IPCClient, process: FerusProcess) {.inline, raises: [AlreadyRegisteredIdentity].} =
   if *client.process:
-    when not defined(ferusInJail):
-      raise newException(
-        AlreadyRegisteredIdentity,
-        "Already registered as another process. You cannot call `identifyAs` twice!"
-      )
-    else:
-      quit(1)
+    raise newException(
+      AlreadyRegisteredIdentity,
+      "Already registered as another process. You cannot call `identifyAs` twice!"
+    )
 
   client.process = some(process)
 
 proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
   if not *client.process:
-    when not defined(ferusInJail):
-      raise newException(
-        ValueError,
-        "No process was registered before calling `setState()`. Run `identifyAs()` and provide a process first!"
-      )
+    raise newException(
+      ValueError,
+      "No process was registered before calling `setState()`. Run `identifyAs()` and provide a process first!"
+    )
 
   var process = &client.process
   process.state = state
@@ -218,6 +232,8 @@ proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
   )
 
 proc poll*(client: var IPCClient) =
+  if client.transferring: return
+
   client.send(
     KeepAlivePacket()
   )
