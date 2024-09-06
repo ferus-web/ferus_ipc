@@ -306,6 +306,8 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
     rawData = server.receive(process.socket)
     data = tryParseJson(rawData, JsonNode)
 
+  process.lastContact = epochTime()
+
   if rawData.len < 1:
     return
 
@@ -333,13 +335,13 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
     return
   
   case &kind:
-    of feKeepAlive:
+    #[of feKeepAlive:
       process.lastContact = epochTime()
       if process.state == Dead:
         process.state = Idling
       
       if not process.transferring:
-        server.send(process.socket, KeepAlivePacket())
+        server.send(process.socket, KeepAlivePacket())]#
     of feLogMessage:
       server.log(
         process,

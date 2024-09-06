@@ -214,10 +214,10 @@ proc setState*(client: var IPCClient, state: FerusProcessState) {.inline.} =
     )
   )
 
-proc poll*(client: var IPCClient) =
-  client.send(
+proc poll*(client: var IPCClient) = discard
+  #[client.send(
     KeepAlivePacket()
-  )
+  )]#
 
 proc newIPCClient*: IPCClient {.inline.} =
   IPCClient(
