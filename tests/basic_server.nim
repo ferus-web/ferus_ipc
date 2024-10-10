@@ -28,4 +28,5 @@ server.onDataTransfer = proc(process: FerusProcess, request: DataTransferRequest
   )
 
 while true:
+  server.receiveFrom(0, 0)
   server.poll()

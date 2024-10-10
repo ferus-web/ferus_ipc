@@ -52,6 +52,9 @@ type
     Medium = 1  # maybe compromised
     High = 2    # probably compromised
 
+  ProcessIdent* = object
+    group*, index*: uint
+
   InitializationFailed* = object of Defect
   IPCServer* = object
     socket*: Socket
@@ -60,6 +63,8 @@ type
 
     onConnection*: proc(process: FerusProcess)
     onDataTransfer*: proc(process: FerusProcess, request: DataTransferRequest)
+
+    receiveFromQueue: seq[ProcessIdent]
 
     kickQueue: seq[FerusProcess]
 
@@ -381,17 +386,29 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         process.transferring = false
     else: discard
 
+proc receiveFrom*(server: var IPCServer, group: uint, index: uint) {.inline.} =
+  server.receiveFromQueue.add(ProcessIdent(group: group, index: index))
+
 proc receiveMessages*(server: var IPCServer) {.inline.} =
-  for gi, group in server.groups:
+  for item in server.receiveFromQueue:
+    let group = server.groups[item.group]
+    validate group
+
+    var process = deepCopy(server.groups[item.group][item.index.int])
+    server.talk(process)
+    server.groups[item.group][item.index.int] = move(process)
+
+  #[ for gi, group in server.groups:
     validate group
     # debug "receiveMessages(): processing group " & $group.id
 
     for i, _ in group:
       var process = group[i]
       server.talk(process)
-      server.groups[gi][i] = process
+      server.groups[gi][i] = process ]#
 
   server.commitKicks()
+  server.receiveFromQueue.reset()
 
 proc poll*(server: var IPCServer) =
   server.findDeadProcesses()

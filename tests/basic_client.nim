@@ -24,13 +24,10 @@ let path = client.connect()
 client.handshake()
 addHandler newIPCLogger(lvlAll, client)
 
-var location = DataLocation(kind: DataLocationKind.WebRequest, url: "totallyrealwebsite.xyz")
-let value = client.requestDataTransfer(ResourceRequired, location)
-
-echo value.get.data
-
-# we need to keep calling `poll` otherwise the IPC server will consider us unresponsive and finally dead!
 while true:
-  client.poll()
+  var location = DataLocation(kind: DataLocationKind.WebRequest, url: "totallyrealwebsite.xyz")
+  let value = client.requestDataTransfer(ResourceRequired, location) # block until we are handed over the resource (or an error)
+
+  echo value.get.data
 
 # no need to call `client.close()`, ORC manages that for you ;)
