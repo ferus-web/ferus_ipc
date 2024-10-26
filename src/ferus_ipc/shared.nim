@@ -179,7 +179,7 @@ type
 
     ## feCookieWorkerStore
     ## The IPC server sends this to a cookie worker when it needs to store a cookie.
-    ## `cookie`: `components.web.cookie.ParsedCookie` - the parsed cookie
+    ## `cookie`: components::web::cookie::ParsedCookie - the parsed cookie
     feCookieWorkerStore
 
     ## feCookieWorkerSave
@@ -211,6 +211,11 @@ type
     ## IPC clients send this when they're about to exit.
     ## `reason`: ExitReason - the reason why the process is exiting
     feExitPacket
+
+    ## feJSConsoleMessage
+    ## IPC clients that are JavaScript processes send this when they want to log a message
+    ## `message`: string
+    ## `level`: bali::stdlib::console::ConsoleLevel
 
   DataTransferRequest* = ref object
     kind: FerusMagic = feDataTransferRequest
