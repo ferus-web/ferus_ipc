@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "xTrayambak"
 description   = "An IPC library that hides away the headaches of implementing IPC."
 license       = "MIT"
