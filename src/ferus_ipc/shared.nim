@@ -216,6 +216,7 @@ type
     ## IPC clients that are JavaScript processes send this when they want to log a message
     ## `message`: string
     ## `level`: bali::stdlib::console::ConsoleLevel
+    feJSConsoleMessage
 
   DataTransferRequest* = ref object
     kind: FerusMagic = feDataTransferRequest
@@ -313,6 +314,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feDataTransferRequest
   of "feExitPacket":
     return some feExitPacket
+  of "feJSConsoleMessage":
+    return some feJSConsoleMessage
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 

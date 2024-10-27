@@ -63,6 +63,7 @@ type
 
     onConnection*: proc(process: FerusProcess)
     onDataTransfer*: proc(process: FerusProcess, request: DataTransferRequest)
+    handler*: proc(process: FerusProcess, kind: FerusMagic, payload: string)
 
     receiveFromQueue: seq[ProcessIdent]
 
@@ -306,7 +307,17 @@ proc log(server: var IPCServer, process: FerusProcess, opacket: Option[FerusLogP
       Medium
     )
 
+var FIONREAD* {.importc, header: "<sys/ioctl.h>".}: cint
+proc ioctl*(fd: cint, op: cint, argp: pointer): cint {.importc, header: "<sys/ioctl.h>".}
+
 proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
+  var count: cint
+  
+  discard ioctl(process.socket.getFd().cint, FIONREAD, addr count)
+
+  if count < 1:
+    return
+
   let 
     rawData = server.receive(process.socket)
     data = tryParseJson(rawData, JsonNode)
@@ -384,7 +395,9 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
         process.transferring = true
         server.onDataTransfer(process, &transferRequest)
         process.transferring = false
-    else: discard
+    else:
+      if server.handler != nil:
+        server.handler(process, &kind, rawData)
 
 proc receiveFrom*(server: var IPCServer, group: uint, index: uint) {.inline.} =
   server.receiveFromQueue.add(ProcessIdent(group: group, index: index))
