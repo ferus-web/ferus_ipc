@@ -69,8 +69,11 @@ type
 
     kickQueue: seq[FerusProcess]
 
-proc send*[T](server: IPCServer, sock: Socket, data: T) {.inline.} =
+proc send*[T](server: var IPCServer, sock: Socket, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
+
+  when defined(ferusIpcLogSendsToStdout):
+    echo serialized
 
   sock.send(serialized)
 

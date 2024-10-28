@@ -37,6 +37,9 @@ type
 proc send*[T](client: var IPCClient, data: T) {.inline.} =
   let serialized = (toJson data) & '\0'
 
+  when defined(ferusIpcLogSendsToStdout):
+    echo serialized
+
   # debug "Sending: " & serialized
 
   client.socket.send(serialized)
