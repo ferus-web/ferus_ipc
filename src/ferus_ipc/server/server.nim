@@ -312,8 +312,8 @@ proc log(server: var IPCServer, process: FerusProcess, opacket: Option[FerusLogP
       Medium
     )
 
-var FIONREAD* {.importc, header: "<sys/ioctl.h>".}: cint
-proc ioctl*(fd: cint, op: cint, argp: pointer): cint {.importc, header: "<sys/ioctl.h>".}
+var FIONREAD {.importc, header: "<sys/ioctl.h>".}: cint
+proc ioctl(fd: cint, op: cint, argp: pointer): cint {.importc, header: "<sys/ioctl.h>".}
 
 proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
   var count: cint
@@ -356,13 +356,6 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
     return
   
   case &kind:
-    #[of feKeepAlive:
-      process.lastContact = epochTime()
-      if process.state == Dead:
-        process.state = Idling
-      
-      if not process.transferring:
-        server.send(process.socket, KeepAlivePacket())]#
     of feLogMessage:
       server.log(
         process,
@@ -403,19 +396,10 @@ proc talk(server: var IPCServer, process: var FerusProcess) {.inline.} =
     else:
       if server.handler != nil:
         server.handler(process, &kind, rawData)
-
-proc receiveFrom*(server: var IPCServer, group: uint, index: uint) {.inline.} =
-  server.receiveFromQueue.add(ProcessIdent(group: group, index: index))
+      else:
+        raise newException(ValueError, "Unhandled opcode: " & $(&kind) & " and a handler proc was not defined.")
 
 proc receiveMessages*(server: var IPCServer) {.inline.} =
-  #[ for item in server.receiveFromQueue:
-    let group = server.groups[item.group]
-    validate group
-
-    var process = deepCopy(server.groups[item.group][item.index.int])
-    server.talk(process)
-    server.groups[item.group][item.index.int] = move(process) ]#
-  
   for gi, group in server.groups:
     validate group
     # debug "receiveMessages(): processing group " & $group.id
@@ -423,10 +407,9 @@ proc receiveMessages*(server: var IPCServer) {.inline.} =
     for i, _ in group:
       var process = group[i]
       server.talk(process)
-      server.groups[gi][i] = process
+      server.groups[gi][i] = move(process)
 
   server.commitKicks()
-  server.receiveFromQueue.reset()
 
 proc poll*(server: var IPCServer) =
   server.findDeadProcesses()
