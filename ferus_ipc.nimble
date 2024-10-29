@@ -2,7 +2,7 @@
 
 version       = "0.1.3"
 author        = "xTrayambak"
-description   = "An IPC library that hides away the headaches of implementing IPC."
+description   = "An opinionated IPC library meant for Ferus"
 license       = "MIT"
 srcDir        = "src"
 
