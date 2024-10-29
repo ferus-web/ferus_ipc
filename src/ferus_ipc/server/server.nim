@@ -223,7 +223,9 @@ proc acceptNewConnection*(server: var IPCServer) =
       if group.id == groupId and 
         *group.find(
           (process: FerusProcess) => process.equate(data.process)
-        ): server.send(conn, HandshakeResultPacket(accepted: false, reason: fhRedundantProcess))
+        ): 
+          server.send(conn, HandshakeResultPacket(accepted: false, reason: fhRedundantProcess))
+          return
 
   info "Process is probably not a duplicate, accepting it."
   var process = deepCopy(data.process)
