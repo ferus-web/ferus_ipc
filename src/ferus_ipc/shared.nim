@@ -218,6 +218,29 @@ type
     ## `level`: bali::stdlib::console::ConsoleLevel
     feJSConsoleMessage
 
+    ## feJSGetProperty
+    ## Get a property based off of a string identifier
+    ## `property`: string
+    feJSGetProperty
+
+    ## feJSPropertyValue
+    ## The IPC server sends this in response to
+    ## a `feJSGetProperty` request.
+    ## `found`: bool - was this property found?
+    ## `data`: JSON encoded data, can be reinterpreted as a struct later
+    feJSPropertyValue
+
+    ## feNetworkSetUserAgent
+    ## `ua`: string - the user agent. If this is empty, the user agent is reset to 
+    ##                the default one.
+    feNetworkSetUserAgent
+    
+    ## feNetworkSetHeader
+    ## Set a header that will be used for the next request.
+    ## After that request is sent, this header will be removed and won't be used
+    ## for further requests.
+    feNetworkSetHeader
+
   DataTransferRequest* = ref object
     kind: FerusMagic = feDataTransferRequest
 
@@ -272,7 +295,7 @@ proc `==`*(a, b: FerusProcess): bool {.inline.} =
   a.kind == b.kind and
   a.socket == b.socket
 
-proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
+proc magicFromStr*(s: string): Option[FerusMagic] =
   case s
   of "feHandshake": 
     return some feHandshake
@@ -316,6 +339,14 @@ proc magicFromStr*(s: string): Option[FerusMagic] {.inline.} =
     return some feExitPacket
   of "feJSConsoleMessage":
     return some feJSConsoleMessage
+  of "feJSGetProperty":
+    return some feJSGetProperty
+  of "feNetworkSetUserAgent":
+    return some feNetworkSetUserAgent
+  of "feNetworkSetHeader":
+    return some feNetworkSetHeader
+  of "feJSPropertyValue":
+    return some feJSPropertyValue
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 
