@@ -241,6 +241,12 @@ type
     ## for further requests.
     feNetworkSetHeader
 
+    ## feJSTakeDocument
+    ## The IPC server sends this when it wants the JavaScript engine to know that the document has been updated.
+    ## The JS process will remember this document as the latest version.
+    ## `document`: components::parsers::html::document::HTMLDocument
+    feJSTakeDocument
+
   DataTransferRequest* = ref object
     kind: FerusMagic = feDataTransferRequest
 
@@ -347,6 +353,8 @@ proc magicFromStr*(s: string): Option[FerusMagic] =
     return some feNetworkSetHeader
   of "feJSPropertyValue":
     return some feJSPropertyValue
+  of "feJSTakeDocument":
+    return some feJSTakeDocument
   else:
     warn "magicFromStr(" & s & "): no such magic string found."
 

@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.6"
+version       = "0.1.7"
 author        = "xTrayambak"
 description   = "An opinionated IPC library meant for Ferus"
 license       = "MIT"
